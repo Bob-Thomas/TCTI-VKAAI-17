@@ -2,7 +2,10 @@ from math import sqrt
 import random
 import numpy as np
 from collections import Counter
-
+from functools import reduce
+import copy as c
+import time
+from collections import defaultdict
 
 def get_season_2000(date):
     """get season based on date in 2000
@@ -47,45 +50,98 @@ training = np.genfromtxt(
 )
 
 
+class Point:
+    def __init__(self, label, data):
+        self.label = label
+        self.data = data
+
+    def __repr__(self):
+        return "%s -> %s" % (self.label, self.data)
+
+
 class Cluster:
-    def __init__(self, centroid):
+    def __init__(self, centroid, group=[]):
         self.centroid = centroid
         self.group = []
 
     def add(self, point):
         self.group.append(point)
 
+    def get_group_size(self):
+        return len(self.group)
+
+    def __repr__(self):
+        return 'Centroid: \n\t%s\nPoints\n\t%s' % (self.centroid, ''.join(["%s\n" % x for x in self.group]))
+
+
+def new_centroids(clusters, training, k):
+    copy = c.deepcopy(clusters)
+    for cluster in copy:
+        cluster.group = []
+    for point in training:
+        distances = []
+        for cluster in copy:
+            distances.append(
+                [
+                    euclidian_distance(point.data, cluster.centroid.data),
+                    cluster
+                ]
+            )
+        nearest = min(distances, key=lambda x: x[0])
+        nearest[1].add(point)
+    newCentroids = []
+    for cluster in copy:
+        cluster.centroid = Point('', [sum(x)/len(cluster.group) for x in list(zip(*[x.data for x in cluster.group]))])
+    return copy
+
+
+def kmeans(clusters, traning, k):
+    find_new = True
+    current_clusters = new_centroids(clusters, training, k)
+    while find_new:
+        new_clusters = new_centroids(current_clusters, training, k)
+        for current_cluster in current_clusters:
+            for new_cluster in new_clusters:
+                if np.array_equiv(np.array(new_cluster.centroid.data), np.array(current_cluster.centroid.data)):
+                    find_new = False
+                else:
+                    find_new = True
+        if find_new:
+            current_clusters = new_clusters
+    return current_clusters
+
 
 k = 4
 training = [
-    {'label': get_season_2000(point[0]), 'data': point} for point in training
+    Point(get_season_2000(point[0]), point[1::]) for point in training
 ]
 
 clusters = [Cluster(random.choice(training)) for i in range(k)]
+result = kmeans(clusters, training, k)
 
+label_list = []
+for cluster in result:
+    appearances = defaultdict(int)
+    for curr in cluster.group:
+        appearances[curr.label] += 1
+    label_list.append([cluster, appearances])
 
-def generate_centroids(clusters, k):
-    new_centroids = []
-    for point in training:
-        distances = []
-        for cluster in clusters:
-            distances.append([
-                euclidian_distance(point['data'][1::],
-                                   cluster.centroid['data'][1::]),
-                cluster
-            ])
-        nearest = Counter(
-            [i[1] for i in sorted(distances, key=lambda t: t[0])[:k]]
-        ).most_common(1)[0][0]
-        nearest.add(point)
-    for cluster in clusters:
-        for g in cluster.group:
-            new_centroids.append(
-                [sum(x) / len(cluster.group)
-                 for x in list(zip(g['data'][1::]))]
-            )
-    return new_centroids
+for index in range(len(label_list)):
+    print("cluster -  %d - %s" % (index, (max(label_list[index][1], key=label_list[index][1].get))))
+    print(label_list[index][0].get_group_size())
 
-
-for cluster in generate_centroids(clusters, k):
-    print(cluster)
+"""
+    Given:
+        • Training set X of examples {x~1,..., ~xn} wherea
+        – x¯i
+        is the feature vector of example i
+        • A set K of centroids {c~1,...,~ck}
+    Do:
+        1. For each point ~xi:
+        (a) Find the nearest centroid ~cj;
+        (b) Assign point ~xi to cluster j;
+        2. For each cluster j = 1,..., k:
+        (a) Calculate new centroid ~cj as the mean of all points ~xi
+        that are assigned
+        to cluster j.
+"""
