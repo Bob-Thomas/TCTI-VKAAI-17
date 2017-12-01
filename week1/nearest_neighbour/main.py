@@ -3,7 +3,7 @@ from math import sqrt
 import warnings
 from collections import Counter
 import random
-
+import operator
 
 def get_season_2000(date):
     """get season based on date in 2000
@@ -40,7 +40,7 @@ def get_season_2001(date):
         return 'winter'
 
 
-def k_nearest_neighbours(data, predict, k=1):
+def get_neighbors(data, predict, k=1):
     """return knn nearest neighbour of data and prediction
 
     Run the knn algorithm over data and fit the prediction closest to the data.
@@ -60,17 +60,48 @@ def k_nearest_neighbours(data, predict, k=1):
         warnings.warn(
             "K is set to a value less than the total voting groups :'(")
 
-    distances = []
-    predict = [predict[0], predict[1]]
+    neighbors = []
+    # predict = [predict[0], predict[1]]
     for group in range(len(data)):
-        distances.append([
-            sqrt(sum([(a - b) ** 2 for a, b in zip(data[group][1::], predict)])),
+        neighbors.append([
+            sqrt(sum([(a - b) ** 2 for a, b in zip(predict, data[group][1::])])),
             data[group][0]]
         )
-    votes = [i[1] for i in sorted(distances)[:k]]
-    vote_result = Counter(votes).most_common(1)[0][0]
-    return get_season_2000(vote_result)
+    neighbors.sort(key=operator.itemgetter(0))
+    return neighbors[:k]
 
+def get_most_common_label(neighbors):
+    """Find the most frequent label in the set of neighbors
+    Arguments:
+        neighbors {array} -- array of neighbors for this example  array of integers corresponding to a date
+
+    Returns:
+        String -- A season label (winter, lente, zomer, herfst)
+    """
+
+    classVotes = {}
+    for x in range(len(neighbors)):
+        response = get_season_2000(neighbors[x][1])
+        if response in classVotes:
+            classVotes[response] += 1
+        else:
+            classVotes[response] = 1
+    sortedVotes = sorted(classVotes.items(), key=operator.itemgetter(1), reverse=True)
+    return sortedVotes[0][0]
+
+def knn(data, point, k):
+    """knn run knn and get most common label for that oint
+
+    Arguments:
+        data {array} -- array of tuples representing data points
+        point {array|tuple} -- The data point you want to place using the data
+        k {int} -- what k you are using for knn
+
+    Returns:
+        String -- A season label (winter, lente, zomer, herfst)
+    """
+
+    return get_most_common_label(get_neighbors(data, point, k))
 
 if __name__ == "__main__":
     validation = np.genfromtxt('validation1.csv', delimiter=';', usecols=[0],
@@ -106,15 +137,13 @@ if __name__ == "__main__":
 
     # run nearest neighbour 100 times over the training set and compare it to validation
     log = open('nearest_neighbor.txt', mode='w')
-
     results = []
     print("Running 100 iterations for knn over data")
     for k in range(1, 100):
         predicted_seasons = [
-            k_nearest_neighbours(test_set, trainer, k) for trainer in training
+            knn(test_set, trainer, k) for trainer in training
         ]
-        accuracy = len(predicted_seasons) - len([x for x in range(len(predicted_seasons))
-                                                 if predicted_seasons[x] == validation_labels[x]])
+        accuracy = len([x for x in range(len(predicted_seasons)) if predicted_seasons[x] == validation_labels[x]])
         results.append((accuracy, k))
 
     winner = sorted(results, key=lambda tup: tup[0], reverse=True)[0]
@@ -125,11 +154,12 @@ if __name__ == "__main__":
     log.close()
     print("Done iterating")
 
+    #predict the season of the random days
     print("Now predicting seasons by random weather data")
-    predicted_season_on_weather = [
-        k_nearest_neighbours(test_set, day, winner[1]) for day in days
-    ]
     log = open('predicted_days.txt', mode='w')
+    predicted_season_on_weather = [
+        knn(test_set, day, winner[1]) for day in days
+    ]
     log.write("k used is %d\n" % (winner[1]))
     [log.write('%d : %s -> %s\n' % (x, days[x], predicted_season_on_weather[x]))
      for x in range(len(predicted_season_on_weather))]
