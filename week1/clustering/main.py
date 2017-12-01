@@ -2,17 +2,16 @@ from math import sqrt
 import random
 import numpy as np
 from collections import Counter
-from functools import reduce
 import copy as c
 import time
 from collections import defaultdict
-
+import sys
+import matplotlib.pyplot as plt
 def get_season_2000(date):
     """get season based on date in 2000
     Arguments:
         date {int} -- number corresponding to a date yearmonthday
     """
-
     if date < 20000301:
         return 'winter'
     elif 20000301 <= date < 20000601:
@@ -20,6 +19,22 @@ def get_season_2000(date):
     elif 20000601 <= date < 20000901:
         return 'zomer'
     elif 20000901 <= date < 20001201:
+        return 'herfst'
+    else:  # from 01−12 to end of year
+        return 'winter'
+
+def get_season_2001(date):
+    """get season based on date in 2001
+    Arguments:
+        date {int} -- number corresponding to a date yearmonthday
+    """
+    if date < 20010301:
+        return 'winter'
+    elif 20010301 <= date < 20010601:
+        return 'lente'
+    elif 20010601 <= date < 20010901:
+        return 'zomer'
+    elif 20010901 <= date < 20011201:
         return 'herfst'
     else:  # from 01−12 to end of year
         return 'winter'
@@ -91,13 +106,17 @@ def new_centroids(clusters, training, k):
         nearest[1].add(point)
     newCentroids = []
     for cluster in copy:
-        cluster.centroid = Point('', [sum(x)/len(cluster.group) for x in list(zip(*[x.data for x in cluster.group]))])
+        cluster.centroid = Point('', [sum(x) / len(cluster.group)
+                                      for x in list(zip(*[x.data for x in cluster.group]))])
     return copy
 
 
 def kmeans(clusters, traning, k):
     find_new = True
     current_clusters = new_centroids(clusters, training, k)
+    for cluster in current_clusters:
+        if cluster.get_group_size() == 0:
+            return -1
     while find_new:
         new_clusters = new_centroids(current_clusters, training, k)
         for current_cluster in current_clusters:
@@ -110,25 +129,68 @@ def kmeans(clusters, traning, k):
             current_clusters = new_clusters
     return current_clusters
 
+def k_means_information(k, training):
+    clusters = [Cluster(random.choice(training)) for i in range(k)]
+    result = kmeans(clusters, training, k)
+    while result == -1:
+        print("Cluster empty")
+        clusters = [Cluster(random.choice(training)) for i in range(k)]
+        result = kmeans(clusters, training, k)
 
-k = 4
-training = [
-    Point(get_season_2000(point[0]), point[1::]) for point in training
-]
+    label_list = []
+    for cluster in result:
+        appearances = defaultdict(int)
+        for curr in cluster.group:
+            appearances[curr.label] += 1
+        label_list.append([cluster, appearances])
 
-clusters = [Cluster(random.choice(training)) for i in range(k)]
-result = kmeans(clusters, training, k)
+    for index in range(len(label_list)):
+        print("cluster -  %d - %s - %s" %
+            (
+                index,
+                (max(label_list[index][1], key=label_list[index][1].get)),
+                ['%s - %d%%' % (k, (v / label_list[index][0].get_group_size()) * 100)
+                                for k, v in label_list[index][1].items()])
+            )
+        print(label_list[index][0].get_group_size())
 
-label_list = []
-for cluster in result:
-    appearances = defaultdict(int)
-    for curr in cluster.group:
-        appearances[curr.label] += 1
-    label_list.append([cluster, appearances])
+def plot_optimal_k(training):
+    mean_distortions = []
+    distortions = []
+    K = range(1,10)
+    iterations = K
+    for k in K:
+        distortions = []
+        for i in iterations:
+            kmeanModel = kmeans([Cluster(random.choice(training)) for i in range(k)], training, k)
+            while kmeanModel == -1:
+                kmeanModel = kmeans([Cluster(random.choice(training)) for i in range(k)], training, k)
+            for cluster in kmeanModel:
+                distances = []
+                for point in cluster.group:
+                    distances.append(euclidian_distance(point.data, cluster.centroid.data))
+            distortions.append(sum(distances)/np.array(training).shape[0])
+        mean_distortions.append(distortions)
+    plt.plot(np.array(K), [ sum(x)/len(x) for x in mean_distortions])
+    plt.xlabel('k')
+    plt.ylabel('Distortion')
+    plt.title('The Elbow Method showing the optimal k')
+    plt.show()
 
-for index in range(len(label_list)):
-    print("cluster -  %d - %s" % (index, (max(label_list[index][1], key=label_list[index][1].get))))
-    print(label_list[index][0].get_group_size())
+if __name__ == '__main__':
+    training = [
+        Point(get_season_2000(point[0]), point[1::]) for point in training
+    ]
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "information":
+            k_means_information(int(sys.argv[2]), training)
+        elif sys.argv[1] == "plot":
+            plot_optimal_k(training)
+    else:
+        print("usage")
+        print("information k")
+        print("plot")
+
 
 """
     Given:
