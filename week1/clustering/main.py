@@ -1,12 +1,29 @@
-from math import sqrt
-import random
-import numpy as np
-from collections import Counter
 import copy as c
-import time
-from collections import defaultdict
+import random
 import sys
+from collections import Counter, defaultdict
+from math import sqrt
+
 import matplotlib.pyplot as plt
+import numpy as np
+
+"""
+    Given:
+        • Training set X of examples {x~1,..., ~xn} wherea
+        – x¯i
+        is the feature vector of example i
+        • A set K of centroids {c~1,...,~ck}
+    Do:
+        1. For each point ~xi:
+        (a) Find the nearest centroid ~cj;
+        (b) Assign point ~xi to cluster j;
+        2. For each cluster j = 1,..., k:
+        (a) Calculate new centroid ~cj as the mean of all points ~xi
+        that are assigned
+        to cluster j.
+"""
+
+
 def get_season_2000(date):
     """get season based on date in 2000
     Arguments:
@@ -22,6 +39,7 @@ def get_season_2000(date):
         return 'herfst'
     else:  # from 01−12 to end of year
         return 'winter'
+
 
 def get_season_2001(date):
     """get season based on date in 2001
@@ -129,6 +147,7 @@ def kmeans(clusters, traning, k):
             current_clusters = new_clusters
     return current_clusters
 
+
 def k_means_information(k, training):
     clusters = [Cluster(random.choice(training)) for i in range(k)]
     result = kmeans(clusters, training, k)
@@ -146,36 +165,41 @@ def k_means_information(k, training):
 
     for index in range(len(label_list)):
         print("cluster -  %d - %s - %s" %
-            (
-                index,
-                (max(label_list[index][1], key=label_list[index][1].get)),
-                ['%s - %d%%' % (k, (v / label_list[index][0].get_group_size()) * 100)
-                                for k, v in label_list[index][1].items()])
-            )
+              (
+                  index,
+                  (max(label_list[index][1], key=label_list[index][1].get)),
+                  ['%s - %d%%' % (k, (v / label_list[index][0].get_group_size()) * 100)
+                   for k, v in label_list[index][1].items()])
+              )
         print(label_list[index][0].get_group_size())
+
 
 def plot_optimal_k(training):
     mean_distortions = []
     distortions = []
-    K = range(1,10)
+    K = range(1, 10)
     iterations = K
     for k in K:
         distortions = []
         for i in iterations:
-            kmeanModel = kmeans([Cluster(random.choice(training)) for i in range(k)], training, k)
+            kmeanModel = kmeans([Cluster(random.choice(training))
+                                 for i in range(k)], training, k)
             while kmeanModel == -1:
-                kmeanModel = kmeans([Cluster(random.choice(training)) for i in range(k)], training, k)
+                kmeanModel = kmeans([Cluster(random.choice(training))
+                                     for i in range(k)], training, k)
             for cluster in kmeanModel:
                 distances = []
                 for point in cluster.group:
-                    distances.append(euclidian_distance(point.data, cluster.centroid.data))
-            distortions.append(sum(distances)/np.array(training).shape[0])
+                    distances.append(euclidian_distance(
+                        point.data, cluster.centroid.data))
+            distortions.append(sum(distances) / np.array(training).shape[0])
         mean_distortions.append(distortions)
-    plt.plot(np.array(K), [ sum(x)/len(x) for x in mean_distortions])
+    plt.plot(np.array(K), [sum(x) / len(x) for x in mean_distortions])
     plt.xlabel('k')
     plt.ylabel('Distortion')
     plt.title('The Elbow Method showing the optimal k')
     plt.show()
+
 
 if __name__ == '__main__':
     training = [
@@ -190,20 +214,3 @@ if __name__ == '__main__':
         print("usage")
         print("information k")
         print("plot")
-
-
-"""
-    Given:
-        • Training set X of examples {x~1,..., ~xn} wherea
-        – x¯i
-        is the feature vector of example i
-        • A set K of centroids {c~1,...,~ck}
-    Do:
-        1. For each point ~xi:
-        (a) Find the nearest centroid ~cj;
-        (b) Assign point ~xi to cluster j;
-        2. For each cluster j = 1,..., k:
-        (a) Calculate new centroid ~cj as the mean of all points ~xi
-        that are assigned
-        to cluster j.
-"""

@@ -1,9 +1,11 @@
-import numpy as np
-from math import sqrt
+import operator
+import random
 import warnings
 from collections import Counter
-import random
-import operator
+from math import sqrt
+
+import numpy as np
+
 
 def get_season_2000(date):
     """get season based on date in 2000
@@ -70,6 +72,7 @@ def get_neighbors(data, predict, k=1):
     neighbors.sort(key=operator.itemgetter(0))
     return neighbors[:k]
 
+
 def get_most_common_label(neighbors):
     """Find the most frequent label in the set of neighbors
     Arguments:
@@ -86,8 +89,10 @@ def get_most_common_label(neighbors):
             classVotes[response] += 1
         else:
             classVotes[response] = 1
-    sortedVotes = sorted(classVotes.items(), key=operator.itemgetter(1), reverse=True)
+    sortedVotes = sorted(classVotes.items(),
+                         key=operator.itemgetter(1), reverse=True)
     return sortedVotes[0][0]
+
 
 def knn(data, point, k):
     """knn run knn and get most common label for that oint
@@ -102,6 +107,7 @@ def knn(data, point, k):
     """
 
     return get_most_common_label(get_neighbors(data, point, k))
+
 
 if __name__ == "__main__":
     validation = np.genfromtxt('validation1.csv', delimiter=';', usecols=[0],
@@ -143,7 +149,8 @@ if __name__ == "__main__":
         predicted_seasons = [
             knn(test_set, trainer, k) for trainer in training
         ]
-        accuracy = len([x for x in range(len(predicted_seasons)) if predicted_seasons[x] == validation_labels[x]])
+        accuracy = len([x for x in range(len(predicted_seasons))
+                        if predicted_seasons[x] == validation_labels[x]])
         results.append((accuracy, k))
 
     winner = sorted(results, key=lambda tup: tup[0], reverse=True)[0]
@@ -154,7 +161,7 @@ if __name__ == "__main__":
     log.close()
     print("Done iterating")
 
-    #predict the season of the random days
+    # predict the season of the random days
     print("Now predicting seasons by random weather data")
     log = open('predicted_days.txt', mode='w')
     predicted_season_on_weather = [
