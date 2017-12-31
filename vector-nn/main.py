@@ -1,4 +1,3 @@
-#Worked together with nerinai(github.com/nerinai/HU_AI
 import numpy as np
 from numpy import matrix, array, random, power
 from pprint import pprint
@@ -18,7 +17,7 @@ def make_network(identity):
     network = []
     for layer in range(1,len(identity)):
         network.append(array([
-                                [random.random() for __ in range(identity[layer-1] + 1)]
+                                [random.uniform(0.2, 0.5) for __ in range(identity[layer-1] + 1)]
                                 for _ in range(identity[layer])
                                 ]))
     return network
@@ -40,27 +39,42 @@ def derived_tanh(x):
     """Expects input x to already be tanh-ed."""
     return 1 - tanh(x)
 
+def relu(x):
+    x = np.array(x)
+    x[x < 0] = 0
+    return x
+
+def derived_relu(x):
+    x = np.array(x)
+    x[x <= 0 ] = 0
+    x[x > 0] = 1
+    return x
 
 def forward(inputs, network, function=sigmoid, step=-1):
     previous = array(inputs)
-    #print(inputs)
     cstep = 0
     for layer in network:
         if cstep == step:
-            print('step prevous', previous)
             return previous
-        #print(layer.shape, np.insert(previous, 0, 1).shape)
-        previous = function(np.dot(layer, np.insert(previous, 0, 1)))
+        previous = function(np.dot(layer, np.append(1, previous)))
         cstep += 1
-    print('previous', previous)
     return previous
 
-
-
-def calculate_cost(network, _input, expected_output):
-    expected_output = matrix(expected_output)
-    output = calculate_output(_input, network)
-    return np.inner(output-expected_output,output-expected_output)
+# def forward(inputs,weights,function=sigmoid,step=-1):
+#     if step == -1:
+#         range_thing = len(weights)
+#     elif step == 0:
+#         return inputs
+#     else:
+#         range_thing = step
+#
+#     for x in range(range_thing):
+#         if x == 0:
+#             retval = function(np.dot(weights[x], np.append(1, inputs)))
+#         else:
+#             retval = function(np.dot(weights[x], np.append(1, retval)))
+#
+#     return retval
 
 def backprop(inputs, outputs, weights, function=sigmoid, derivative=derivative_sigmoid, eta=0.01):
     """
@@ -70,7 +84,7 @@ def backprop(inputs, outputs, weights, function=sigmoid, derivative=derivative_s
     :param inputs: (numpy) array representing the input vector.
     :param outputs:  (numpy) array representing the output vector.
     :param weights:  list of numpy arrays (matrices) that represent the weights per layer.
-    :param function: activation function to be used, e.g. sigmoid or tanh
+    :param function: activation function to be used, e.g. sigmoid o*
     :param derivative: derivative of activation function to be used.
     :param learnrate: rate of learning.
     :return: list of numpy arrays representing the delta per weight per layer.
@@ -85,20 +99,43 @@ def backprop(inputs, outputs, weights, function=sigmoid, derivative=derivative_s
         if i == 0:
             error = np.array(derivative(a_now) * (outputs - a_now))  # calculate error on output
         else:
-            error = derivative(a_now) * (weights[-i].T).dot(error)[1:] # calculate error on current layer
+            error = derivative(a_now) * (weights[-i].T).dot(error)[1:] # calculate error on current layer]
         delta = eta * np.expand_dims(np.append(1, a_prev), axis=1) * error # calculate adjustments to weights
         deltas.insert(0, delta.T) # store adjustments
         a_now = a_prev # move one layer backwards
-
     return deltas
 
 network = make_network([2, 2, 1])
-pprint(network)
-training_set = [
-((0,0),0),
-((0,1),1),
-((1,0),1),
-((1,1),0)
-]
 
-pprint(backprop([0,0],[1],network))
+training_input = np.array([
+[1,1],
+[0,1],
+[1,0],
+[0,0]
+])
+
+training_output = np.array([
+[0],
+[1],
+[1],
+[0]
+])
+
+while(True):
+    cumulative_err = 0
+    for x in range(len(training_input)):
+        deltas = backprop(training_input[x], training_output[x], network, relu, derived_relu)
+        result = forward(training_input[x], network, relu)
+        cumulative_err += ((result - training_output[x]) * (result - training_output[x]))
+
+        for y in range(len(network)):
+            network[y] = network[y] + deltas[y]
+    print(cumulative_err)
+    if cumulative_err < 0.001:
+        break
+
+print(network)
+print(forward([0,0], network, relu))
+print(forward([1,0], network, relu))
+print(forward([0,1], network, relu))
+print(forward([1,1], network, relu))
